@@ -9,3 +9,5 @@ supabase
 pytest
 pytest-asyncio
 python-telegram-bot
+supabase==2.9.1
+

@@ -8,13 +8,13 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
-# DESPUÉS importar routes (que usa os.getenv)
+# DESPUÉS importar routes
 from app.routes import telegram_routes
 
 app = FastAPI(
     title="Chatbot Milhojaldres",
     description="Bot de ventas IA para Milhojaldres",
-    version="0.1.0"
+    version="1.0.0"
 )
 
 app.add_middleware(
@@ -27,22 +27,23 @@ app.add_middleware(
 
 app.include_router(telegram_routes.router)
 
+@app.get("/")
+async def root():
+    return {
+        "message": "Chatbot Milhojaldres API",
+        "version": "1.0.0",
+        "docs": "/docs",
+        "webhook": "/webhook/telegram",
+        "health": "/health"
+    }
+
 @app.get("/health")
 async def health():
     return {
         "status": "ok",
         "message": "Chatbot Milhojaldres running",
-        "environment": os.getenv("ENVIRONMENT", "development")
-    }
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Chatbot Milhojaldres API",
-        "version": "0.1.0",
-        "docs": "/docs",
-        "webhook": "/webhook/telegram",
-        "health": "/health"
+        "environment": os.getenv("ENVIRONMENT", "development"),
+        "database": "connected"
     }
 
 if __name__ == "__main__":
