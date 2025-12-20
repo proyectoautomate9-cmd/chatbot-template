@@ -1,13 +1,11 @@
-version: '3.8'
-
 services:
   chatbot:
     build: .
     container_name: milhojaldres-bot
     ports:
-      - "8001:8000"  # ← CAMBIAR a 8001 externamente
+      - "8001:8000"  # <-- CAMBIÉ a 8001 externamente
     env_file:
-      - .env
+      - .env  # <-- AGREGADO: carga variables desde .env
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import requests; requests.get('http://localhost:8000/health')"]

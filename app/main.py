@@ -1,51 +1,41 @@
-from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
+import asyncio
+import logging
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from app.routes.telegram_routes import start_command, handle_user_message
+from config.prompts import get_system_prompt
+
 import os
-from pathlib import Path
 
-# PRIMERO cargar .env
-BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR / ".env")
-
-# DESPUÉS importar routes
-from app.routes import telegram_routes
-
-app = FastAPI(
-    title="Chatbot Milhojaldres",
-    description="Bot de ventas IA para Milhojaldres",
-    version="1.0.0"
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+logger = logging.getLogger(__name__)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-app.include_router(telegram_routes.router)
-
-@app.get("/")
-async def root():
-    return {
-        "message": "Chatbot Milhojaldres API",
-        "version": "1.0.0",
-        "docs": "/docs",
-        "webhook": "/webhook/telegram",
-        "health": "/health"
-    }
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "ok",
-        "message": "Chatbot Milhojaldres running",
-        "environment": os.getenv("ENVIRONMENT", "development"),
-        "database": "connected"
-    }
+async def main():
+    """Start bot with polling (local development)"""
+    if not TELEGRAM_BOT_TOKEN:
+        logger.error("❌ TELEGRAM_BOT_TOKEN no configurado en .env")
+        return
+    
+    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    
+    # Add handlers
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
+    
+    async with application:
+        await application.initialize()
+        await application.start()
+        await application.updater.start_polling()
+        logger.info("✅ Bot iniciado en POLLING mode - esperando mensajes...")
+        await asyncio.Event().wait()  # Run forever
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    try:
+        asyncio.run(main())
+    except KeyboardInterrupt:
+        logger.info("Bot detenido")
