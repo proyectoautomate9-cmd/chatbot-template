@@ -1,41 +1,111 @@
-import asyncio
+"""
+Aplicación FastAPI principal con bot de Telegram corriendo en background
+Para desarrollo local con polling, usa: python -m app.polling_bot
+"""
 import logging
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from app.routes.telegram_routes import start_command, handle_user_message
-from config.prompts import get_system_prompt
-
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
 import os
 
+# Cargar variables de entorno
+load_dotenv()
+
+# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+# Crear aplicación FastAPI
+app = FastAPI(
+    title="Milhojaldres Bot",
+    description="Chatbot multicanal con Telegram, Supabase y OpenAI",
+    version="1.0.0"
+)
 
-async def main():
-    """Start bot with polling (local development)"""
-    if not TELEGRAM_BOT_TOKEN:
-        logger.error("❌ TELEGRAM_BOT_TOKEN no configurado en .env")
-        return
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# ============================================================================
+# RUTAS DE SALUD
+# ============================================================================
+
+@app.get("/health")
+async def health_check():
+    """Verificar que la API está activa"""
+    logger.info("Health check solicitado")
+    return {
+        "status": "healthy",
+        "service": "milhojaldres-bot",
+        "mode": "web_service_with_background_bot"
+    }
+
+@app.get("/")
+async def root():
+    """Endpoint raíz"""
+    return {
+        "message": "Milhojaldres Bot API",
+        "version": "1.0.0",
+        "endpoints": {
+            "health": "/health",
+            "telegram_webhook": "/telegram/webhook"
+        }
+    }
+
+# ============================================================================
+# RUTAS DE TELEGRAM (WEBHOOK)
+# ============================================================================
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    """
+    Webhook para recibir actualizaciones de Telegram (uso futuro)
+    Por ahora el bot usa polling en background
+    """
+    try:
+        json_data = await request.json()
+        logger.info(f"📨 Webhook recibido: {json_data}")
+        return {"ok": True, "message": "Webhook procesado"}
+    except Exception as e:
+        logger.error(f"❌ Error en webhook: {str(e)}")
+        return {"ok": False, "error": str(e)}
+
+# ============================================================================
+# EVENTOS DE CICLO DE VIDA
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Inicia FastAPI y el bot en background"""
+    logger.info("✅ FastAPI iniciando...")
     
-    application = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    # Iniciar bot en background thread
+    try:
+        from app.background_bot import start_bot_background
+        start_bot_background()
+        logger.info("✅ Bot de Telegram iniciado en background")
+    except Exception as e:
+        logger.error(f"❌ Error iniciando bot: {e}")
     
-    # Add handlers
-    application.add_handler(CommandHandler("start", start_command))
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_user_message))
-    
-    async with application:
-        await application.initialize()
-        await application.start()
-        await application.updater.start_polling()
-        logger.info("✅ Bot iniciado en POLLING mode - esperando mensajes...")
-        await asyncio.Event().wait()  # Run forever
+    logger.info("🌐 Milhojaldres Bot listo para recibir tráfico")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    logger.info("🛑 Milhojaldres Bot detenido")
 
 if __name__ == "__main__":
-    try:
-        asyncio.run(main())
-    except KeyboardInterrupt:
-        logger.info("Bot detenido")
+    import uvicorn
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        log_level="info"
+    )
