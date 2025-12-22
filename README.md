@@ -1,14 +1,14 @@
-ï»¿# ğŸ° Milhoja Dres Bot
+# ?? Milhoja Dres Bot
 
-Bot de Telegram para gestiÃ³n de Ã³rdenes de milhojas y bebidas, integrado con Supabase.
+Bot de Telegram para gestión de órdenes de milhojas y bebidas, integrado con Supabase.
 
-## CaracterÃ­sticas
+## Características
 
-- âœ… MenÃº interactivo de productos
-- âœ… Carrito de compras
-- âœ… Procesamiento de Ã³rdenes
-- âœ… Notificaciones
-- âœ… Historial de compras
+- ? Menú interactivo de productos
+- ? Carrito de compras
+- ? Procesamiento de órdenes
+- ? Notificaciones
+- ? Historial de compras
 
 ## Requisitos
 
@@ -16,7 +16,7 @@ Bot de Telegram para gestiÃ³n de Ã³rdenes de milhojas y bebidas, integrado con S
 - Supabase
 - Telegram Bot Token
 
-## InstalaciÃ³n
+## Instalación
 
 \\\ash
 python -m venv venv
@@ -25,9 +25,9 @@ pip install -r requirements.txt
 cp .env.example .env
 \\\
 
-## ConfiguraciÃ³n
+## Configuración
 
-1. ObtÃ©n tu token en @BotFather
+1. Obtén tu token en @BotFather
 2. Crea un proyecto en Supabase
 3. Completa .env con tus credenciales
 
@@ -39,8 +39,8 @@ python main.py
 
 ## Estructura
 
-- app/ - CÃ³digo principal
-- config/ - ConfiguraciÃ³n
+- app/ - Código principal
+- config/ - Configuración
 - tests/ - Tests
 - scripts/ - Scripts SQL
 
