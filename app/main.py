@@ -1,111 +1,99 @@
 """
-Aplicación FastAPI principal con bot de Telegram corriendo en background
-Para desarrollo local con polling, usa: python -m app.polling_bot
+Bot principal de Telegram para Milhoja Dres
 """
-import logging
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-from dotenv import load_dotenv
 import os
+import logging
+from telegram.ext import (
+    Application,
+    CommandHandler,
+    CallbackQueryHandler
+)
+from dotenv import load_dotenv
 
 # Cargar variables de entorno
 load_dotenv()
 
 # Configurar logging
 logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    level=logging.INFO
 )
 logger = logging.getLogger(__name__)
 
-# Crear aplicación FastAPI
-app = FastAPI(
-    title="Milhojaldres Bot",
-    description="Chatbot multicanal con Telegram, Supabase y OpenAI",
-    version="1.0.0"
+# Importar handlers (ahora funciona limpiamente)
+from app.handlers.start import (
+    start_command,
+    show_main_menu,
+    show_order_menu,
+    show_my_orders,
+    show_info,
+    show_contact,
+    help_command,
+    menu_command
+)
+from app.handlers.products import (
+    show_products_by_category,
+    show_product_detail,
+    add_to_cart,
+    view_cart,
+    clear_cart,
+    confirm_order
 )
 
-# CORS middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
-# ============================================================================
-# RUTAS DE SALUD
-# ============================================================================
-
-@app.get("/health")
-async def health_check():
-    """Verificar que la API está activa"""
-    logger.info("Health check solicitado")
-    return {
-        "status": "healthy",
-        "service": "milhojaldres-bot",
-        "mode": "web_service_with_background_bot"
-    }
-
-@app.get("/")
-async def root():
-    """Endpoint raíz"""
-    return {
-        "message": "Milhojaldres Bot API",
-        "version": "1.0.0",
-        "endpoints": {
-            "health": "/health",
-            "telegram_webhook": "/telegram/webhook"
-        }
-    }
-
-# ============================================================================
-# RUTAS DE TELEGRAM (WEBHOOK)
-# ============================================================================
-
-@app.post("/telegram/webhook")
-async def telegram_webhook(request: Request):
+def main():
     """
-    Webhook para recibir actualizaciones de Telegram (uso futuro)
-    Por ahora el bot usa polling en background
+    Función principal para iniciar el bot
     """
-    try:
-        json_data = await request.json()
-        logger.info(f"📨 Webhook recibido: {json_data}")
-        return {"ok": True, "message": "Webhook procesado"}
-    except Exception as e:
-        logger.error(f"❌ Error en webhook: {str(e)}")
-        return {"ok": False, "error": str(e)}
-
-# ============================================================================
-# EVENTOS DE CICLO DE VIDA
-# ============================================================================
-
-@app.on_event("startup")
-async def startup_event():
-    """Inicia FastAPI y el bot en background"""
-    logger.info("✅ FastAPI iniciando...")
+    # Obtener token
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
     
-    # Iniciar bot en background thread
-    try:
-        from app.background_bot import start_bot_background
-        start_bot_background()
-        logger.info("✅ Bot de Telegram iniciado en background")
-    except Exception as e:
-        logger.error(f"❌ Error iniciando bot: {e}")
+    if not token:
+        logger.error("❌ TELEGRAM_BOT_TOKEN no encontrado en .env")
+        return
     
-    logger.info("🌐 Milhojaldres Bot listo para recibir tráfico")
+    # Crear aplicación
+    application = Application.builder().token(token).build()
+    
+    # ========================================
+    # COMANDOS
+    # ========================================
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("help", help_command))
+    application.add_handler(CommandHandler("menu", menu_command))
+    
+    # ========================================
+    # CALLBACKS - MENÚ PRINCIPAL
+    # ========================================
+    application.add_handler(CallbackQueryHandler(show_main_menu, pattern="^menu_volver$"))
+    application.add_handler(CallbackQueryHandler(show_order_menu, pattern="^menu_hacer_pedido$"))
+    application.add_handler(CallbackQueryHandler(show_my_orders, pattern="^menu_mis_pedidos$"))
+    application.add_handler(CallbackQueryHandler(show_info, pattern="^menu_informacion$"))
+    application.add_handler(CallbackQueryHandler(show_contact, pattern="^menu_contacto$"))
+    
+    # ========================================
+    # CALLBACKS - PRODUCTOS
+    # ========================================
+    application.add_handler(CallbackQueryHandler(show_products_by_category, pattern="^cat_"))
+    application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^prod_"))
+    application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^add_"))
+    
+    # ========================================
+    # CALLBACKS - CARRITO
+    # ========================================
+    application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
+    application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
+    application.add_handler(CallbackQueryHandler(confirm_order, pattern="^confirm_order$"))
+    
+    # ========================================
+    # INICIAR BOT
+    # ========================================
+    logger.info("🚀 Bot iniciado correctamente")
+    logger.info("🔗 Esperando mensajes...")
+    
+    # Iniciar polling
+    application.run_polling(allowed_updates=["message", "callback_query"])
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    logger.info("🛑 Milhojaldres Bot detenido")
 
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        log_level="info"
-    )
+if __name__ == '__main__':
+    main()
