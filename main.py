@@ -14,22 +14,18 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
-# ==========================================
-# CONFIGURACIÓN INICIAL
-# ==========================================
-
+# Cargar variables de entorno
 load_dotenv()
 
+# Configurar logging
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     level=logging.INFO
 )
+
 logger = logging.getLogger(__name__)
 
-# ==========================================
-# IMPORTS - HANDLERS PRINCIPALES
-# ==========================================
-
+# Importar handlers de start y productos
 from app.handlers.start import (
     start_command,
     show_main_menu,
@@ -41,10 +37,6 @@ from app.handlers.start import (
     menu_command
 )
 
-# ==========================================
-# IMPORTS - HANDLERS PRODUCTOS Y CARRITO
-# ==========================================
-
 from app.handlers.products import (
     show_products_by_category,
     show_product_detail,
@@ -54,23 +46,7 @@ from app.handlers.products import (
     confirm_order
 )
 
-# ==========================================
-# IMPORTS - HANDLERS ADMIN
-# ==========================================
-
-from app.handlers.admin import (
-    admin_panel,
-    admin_view_orders,
-    admin_order_detail,
-    admin_change_status,
-    admin_stats,
-    ADMIN_IDS
-)
-
-# ==========================================
-# IMPORTS - HANDLERS PRE-ÓRDENES
-# ==========================================
-
+# Importar handlers de pre-órdenes
 from app.handlers.preorders import (
     start_preorder,
     select_customer_type,
@@ -94,19 +70,6 @@ from app.handlers.preorders import (
     CONFIRMING_PREORDER
 )
 
-# ==========================================
-# IMPORTS - HANDLERS CHAT IA
-# ==========================================
-
-from app.handlers.chat_handler import (
-    start_chat,
-    handle_chat_message,
-    exit_chat
-)
-
-# ==========================================
-# FUNCIÓN PRINCIPAL
-# ==========================================
 
 def main():
     """
@@ -114,6 +77,7 @@ def main():
     """
     # Obtener token
     token = os.getenv('TELEGRAM_BOT_TOKEN')
+    
     if not token:
         logger.error("❌ TELEGRAM_BOT_TOKEN no encontrado en .env")
         return
@@ -121,18 +85,16 @@ def main():
     # Crear aplicación
     application = Application.builder().token(token).build()
 
-    # ==========================================
-    # SECTION 1: COMANDOS BASE
-    # ==========================================
-    
+    # ========================================
+    # COMANDOS
+    # ========================================
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("menu", menu_command))
 
-    # ==========================================
-    # SECTION 2: CONVERSATION HANDLER - PRE-ÓRDENES
-    # ==========================================
-    
+    # ========================================
+    # CONVERSATION HANDLER - PRE-ÓRDENES
+    # ========================================
     preorder_conv_handler = ConversationHandler(
         entry_points=[
             CallbackQueryHandler(start_preorder, pattern="^start_preorder$")
@@ -176,74 +138,41 @@ def main():
         name="preorder_conversation",
         persistent=False
     )
+    
     application.add_handler(preorder_conv_handler)
 
-    # ==========================================
-    # SECTION 3: CALLBACKS - MENÚ PRINCIPAL
-    # ==========================================
-    
+    # ========================================
+    # CALLBACKS - MENÚ PRINCIPAL
+    # ========================================
     application.add_handler(CallbackQueryHandler(show_main_menu, pattern="^menu_volver$"))
     application.add_handler(CallbackQueryHandler(show_order_menu, pattern="^menu_hacer_pedido$"))
     application.add_handler(CallbackQueryHandler(show_my_orders, pattern="^menu_mis_pedidos$"))
     application.add_handler(CallbackQueryHandler(show_info, pattern="^menu_informacion$"))
     application.add_handler(CallbackQueryHandler(show_contact, pattern="^menu_contacto$"))
 
-    # ==========================================
-    # SECTION 4: CALLBACKS - PRODUCTOS
-    # ==========================================
-    
+    # ========================================
+    # CALLBACKS - PRODUCTOS
+    # ========================================
     application.add_handler(CallbackQueryHandler(show_products_by_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^prod_"))
     application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^add_"))
 
-    # ==========================================
-    # SECTION 5: CALLBACKS - CARRITO
-    # ==========================================
-    
+    # ========================================
+    # CALLBACKS - CARRITO
+    # ========================================
     application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
     application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     application.add_handler(CallbackQueryHandler(confirm_order, pattern="^confirm_order$"))
 
-    # ==========================================
-    # SECTION 6: CALLBACKS - ADMIN
-    # ==========================================
-    
-    application.add_handler(CallbackQueryHandler(admin_panel, pattern="^admin_panel$"))
-    application.add_handler(CallbackQueryHandler(admin_view_orders, pattern="^admin_orders_"))
-    application.add_handler(CallbackQueryHandler(admin_order_detail, pattern="^admin_order_detail_"))
-    application.add_handler(CallbackQueryHandler(admin_change_status, pattern="^admin_change_status_"))
-    application.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
-
-    # ==========================================
-    # SECTION 7: CALLBACKS - CHAT IA
-    # ==========================================
-    
-    application.add_handler(CallbackQueryHandler(start_chat, pattern="^chat_libre$"))
-    application.add_handler(CallbackQueryHandler(exit_chat, pattern="^exit_chat$"))
-
-    # ==========================================
-    # SECTION 8: INICIAR BOT
-    # ==========================================
-    
+    # ========================================
+    # INICIAR BOT
+    # ========================================
     logger.info("🚀 Bot iniciado correctamente")
     logger.info("🔗 Esperando mensajes...")
 
-    # ==========================================
-    # SECTION 9: MESSAGE HANDLER (SIEMPRE AL FINAL)
-    # ==========================================
-    # IMPORTANTE: Este handler debe ir AL FINAL para no bloquear callbacks
-    
-    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat_message))
-
-    # ==========================================
-    # SECTION 10: RUN POLLING
-    # ==========================================
-    
+    # Iniciar polling
     application.run_polling(allowed_updates=["message", "callback_query"])
 
-# ==========================================
-# ENTRY POINT
-# ==========================================
 
 if __name__ == '__main__':
     main()

@@ -9,7 +9,6 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handler para el comando /start
@@ -18,7 +17,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # Registrar usuario en la base de datos si no existe
     supabase = get_supabase()
-    
     try:
         # Verificar si el usuario ya existe
         response = supabase.table("users")\
@@ -32,9 +30,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 'telegram_id': user.id,
                 'nombre': f"{user.first_name or ''} {user.last_name or ''}".strip() or 'Usuario'
             }
+            
             supabase.table("users").insert(new_user).execute()
             logger.info(f"Nuevo usuario registrado: {user.id}")
-    
     except Exception as e:
         logger.error(f"Error registrando usuario: {e}")
     
@@ -48,11 +46,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     
     keyboard = [
-        [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
-        [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
-        [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
-        [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
-    ]
+    [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
+    [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
+    [InlineKeyboardButton("💬 Chat IA", callback_data="chat_libre")],
+    [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
+    [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
+        ]
+
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -64,9 +64,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Muestra el menú principal
-    """
+    """Muestra el menú principal después de un callback"""
     query = update.callback_query
     await query.answer()
     
@@ -80,9 +78,16 @@ async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
         [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
+        [InlineKeyboardButton("💬 Chat IA", callback_data="chat_libre")],
         [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
         [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
     ]
+
+    
+    # Agregar botón de admin solo si es admin
+    from app.handlers.admin import ADMIN_IDS
+    if update.effective_user.id in ADMIN_IDS:
+        keyboard.insert(3, [InlineKeyboardButton("👨‍💼 Panel Admin", callback_data="admin_panel")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -115,7 +120,6 @@ async def show_order_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text += "Selecciona una categoría:\n"
     
     keyboard = []
-    
     for cat in categories:
         emoji = cat.get('icon_emoji', '📦')
         name = cat['name']
@@ -172,7 +176,6 @@ async def show_my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
             text = "❌ Usuario no encontrado.\n\nPor favor usa /start para registrarte."
             keyboard = [[InlineKeyboardButton("🏠 Inicio", callback_data="menu_volver")]]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            
             await query.edit_message_text(
                 text=text,
                 reply_markup=reply_markup
@@ -225,12 +228,13 @@ async def show_my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         'preparing': ('👨‍🍳', 'En preparación'),
                         'ready': ('📦', 'Listo para entrega')
                     }
+                    
                     emoji, status_text = status_info.get(status, ('❓', status))
                     
                     text += f"{emoji} **Orden #{order_id}**\n"
-                    text += f"   📅 {created}\n"
-                    text += f"   💰 ${total:,.0f}\n"
-                    text += f"   Estado: _{status_text}_\n\n"
+                    text += f" 📅 {created}\n"
+                    text += f" 💰 ${total:,.0f}\n"
+                    text += f" Estado: _{status_text}_\n\n"
                 
                 text += "━━━━━━━━━━━━━━━━\n\n"
             else:
@@ -247,7 +251,6 @@ async def show_my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 # Calcular días desde la entrega
                 if fecha_str:
                     try:
-                        # Manejar diferentes formatos de fecha
                         if 'T' in fecha_str:
                             fecha_orden = datetime.fromisoformat(fecha_str.replace('Z', '+00:00'))
                         else:
@@ -275,7 +278,6 @@ async def show_my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Botones
             keyboard = []
             
-            # Si no hay activos, destacar "Hacer Pedido"
             if not active_orders:
                 keyboard.append([
                     InlineKeyboardButton(
@@ -305,7 +307,7 @@ async def show_my_orders(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
-    
+        
     except Exception as e:
         logger.error(f"Error obteniendo pedidos: {e}")
         import traceback
@@ -333,25 +335,39 @@ async def show_info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     text = (
-        "ℹ️ **INFORMACIÓN**\n\n"
-        "🍰 **Milhoja Dres**\n\n"
-        "Milhojas artesanales hechas con amor y los mejores ingredientes.\n\n"
-        "📍 **Ubicación:**\n"
-        "Bogotá, Colombia\n\n"
-        "⏰ **Horarios:**\n"
+        "ℹ️ **INFORMACIÓN - MILHOJALDRES**\n\n"
+        "🍰 Milhojas y postres artesanales hechos con amor\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📍 **PUNTOS DE RECOGIDA:**\n"
+        "• Calle 96b #20d–70\n"
+        "• Cra 81b #19b–80\n\n"
+        "⏰ **HORARIOS:**\n"
         "Lunes a Viernes: 8:00 AM - 6:00 PM\n"
         "Sábados: 9:00 AM - 5:00 PM\n"
         "Domingos: Cerrado\n\n"
-        "🚚 **Entregas:**\n"
-        "Realizamos entregas a domicilio en Bogotá\n"
-        "Tiempo estimado: 30-45 minutos\n\n"
-        "💳 **Métodos de pago:**\n"
-        "• Efectivo\n"
-        "• Transferencia\n"
-        "• Tarjeta (contra entrega)\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🚚 **POLÍTICA DE ENTREGAS:**\n"
+        "⚠️ NO realizamos domicilios directos\n"
+        "✅ Puedes enviar tu domiciliario particular\n"
+        "   (Rappi, Uber, o domiciliario de confianza)\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📦 **CONDICIONES DE PEDIDO:**\n"
+        "• Se requiere anticipo del 50% para listar\n"
+        "• Pedidos grandes: 2 días de anticipación\n"
+        "• Indicar fecha y hora de recogida\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "💳 **MÉTODOS DE PAGO:**\n"
+        "• Nequi\n"
+        "• Daviplata\n"
+        "📱 Número: **3014170313**\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📞 **CONTACTO Y SEGUIMIENTO:**\n"
+        "WhatsApp: 3014170313\n"
+        "Para cambios, quejas o seguimiento"
     )
     
     keyboard = [
+        [InlineKeyboardButton("🛒 Hacer Pedido", callback_data="menu_hacer_pedido")],
         [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")],
         [InlineKeyboardButton("🏠 Menú Principal", callback_data="menu_volver")]
     ]
@@ -373,17 +389,22 @@ async def show_contact(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await query.answer()
     
     text = (
-        "📞 **CONTACTO**\n\n"
+        "📞 **CONTACTO - MILHOJALDRES**\n\n"
         "¿Necesitas ayuda o tienes alguna pregunta?\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
         "📱 **WhatsApp:**\n"
-        "+57 300 123 4567\n\n"
+        "3014170313\n\n"
         "📧 **Email:**\n"
         "info@milhojaldres.com\n\n"
         "📷 **Instagram:**\n"
         "@milhojaldres\n\n"
         "🌐 **Facebook:**\n"
         "Milhoja Dres\n\n"
-        "¡Estamos para servirte!"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "📍 **Puntos de Recogida:**\n"
+        "• Calle 96b #20d–70\n"
+        "• Cra 81b #19b–80\n\n"
+        "¡Estamos para servirte! 😊"
     )
     
     keyboard = [
@@ -430,6 +451,8 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+ 
+ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handler para el comando /menu
     """
@@ -443,9 +466,14 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
         [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
-        [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
-        [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
+        [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")],
+        [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")]
     ]
+    
+    # Agregar botón de admin solo si es admin
+    from app.handlers.admin import ADMIN_IDS
+    if update.effective_user.id in ADMIN_IDS:
+        keyboard.insert(3, [InlineKeyboardButton("👨‍💼 Panel Admin", callback_data="admin_panel")])
     
     reply_markup = InlineKeyboardMarkup(keyboard)
     
@@ -454,3 +482,4 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=reply_markup,
         parse_mode='Markdown'
     )
+
