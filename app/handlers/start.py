@@ -8,13 +8,12 @@ import logging
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
-
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """
     Handler para el comando /start
     """
     user = update.effective_user
-    
+
     # Registrar usuario en la base de datos si no existe
     supabase = get_supabase()
     try:
@@ -23,27 +22,47 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             .select("*")\
             .eq("telegram_id", user.id)\
             .execute()
-        
+
         if not response.data:
             # Crear nuevo usuario
             new_user = {
                 'telegram_id': user.id,
                 'nombre': f"{user.first_name or ''} {user.last_name or ''}".strip() or 'Usuario'
             }
-            
+
             supabase.table("users").insert(new_user).execute()
+
             logger.info(f"Nuevo usuario registrado: {user.id}")
     except Exception as e:
         logger.error(f"Error registrando usuario: {e}")
-    
-    # Mostrar mensaje de bienvenida
+
+    # Botón Web App para Render
+    from telegram import WebAppInfo
+
+    keyboard = [
+        [InlineKeyboardButton("🛍️ Comprar en Web", web_app=WebAppInfo(url="https://milhojaldres-bot.onrender.com/telegram_web_app.html"))],
+        [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
+        [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
+        [InlineKeyboardButton("💬 Chat IA", callback_data="chat_libre")],
+        [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
+        [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
+    ]
+
     welcome_text = (
         f"👋 ¡Hola {user.first_name}!\n\n"
         "🍰 Bienvenido a **Milhoja Dres Bot**\n\n"
         "Tu asistente personal para ordenar deliciosas milhojas "
-        "y bebidas artesanales.\n\n"
+        "y postres artesanales.\n\n"
         "¿Qué te gustaría hacer hoy?"
     )
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    await update.message.reply_text(
+        welcome_text,
+        reply_markup=reply_markup,
+        parse_mode='Markdown'
+    )
+
     
     keyboard = [
     [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
