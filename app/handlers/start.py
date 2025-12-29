@@ -36,11 +36,8 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Error registrando usuario: {e}")
 
-    # Botón Web App para Render
-    from telegram import WebAppInfo
-
+   
     keyboard = [
-        [InlineKeyboardButton("🛍️ Comprar en Web", web_app=WebAppInfo(url="https://milhojaldres-bot.onrender.com/telegram_web_app.html"))],
         [InlineKeyboardButton("🛒 Hacer un Pedido", callback_data="menu_hacer_pedido")],
         [InlineKeyboardButton("📦 Mis Pedidos", callback_data="menu_mis_pedidos")],
         [InlineKeyboardButton("💬 Chat IA", callback_data="chat_libre")],
