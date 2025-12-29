@@ -38,8 +38,12 @@ from app.handlers.start import (
     show_info,
     show_contact,
     help_command,
-    menu_command
+    menu_command,
+    start_chat_libre
 )
+
+
+from app.handlers.chat_handler import handle_free_chat
 
 # ==========================================
 # IMPORTS - HANDLERS PRODUCTOS Y CARRITO
@@ -178,6 +182,10 @@ def main():
     )
     application.add_handler(preorder_conv_handler)
 
+    # ============ CHAT LIBRE ============
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_free_chat))
+
+
     # ==========================================
     # SECTION 3: CALLBACKS - MENÚ PRINCIPAL
     # ==========================================
@@ -235,12 +243,18 @@ def main():
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat_message))
 
-    # ==========================================
-    # SECTION 10: RUN POLLING
-    # ==========================================
-    
+    # Log TODOS los callbacks
+    async def log_update(update, context):
+        if update.callback_query:
+            logger.info(f"🔍 CALLBACK: {update.callback_query.data}")
+
+    application.add_handler(CallbackQueryHandler(log_update), group=-1)
+
+    # RUN POLLING
     application.run_polling(allowed_updates=["message", "callback_query"])
 
+
+   
 # ==========================================
 # ENTRY POINT
 # ==========================================

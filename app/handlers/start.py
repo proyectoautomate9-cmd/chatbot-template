@@ -51,7 +51,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     [InlineKeyboardButton("💬 Chat IA", callback_data="chat_libre")],
     [InlineKeyboardButton("ℹ️ Información", callback_data="menu_informacion")],
     [InlineKeyboardButton("📞 Contacto", callback_data="menu_contacto")]
-        ]
+    ]
 
     
     reply_markup = InlineKeyboardMarkup(keyboard)
@@ -65,6 +65,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def show_main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Muestra el menú principal después de un callback"""
+    context.user_data["chat_mode"] = None # Salir de cualquier modo de chat especial
     query = update.callback_query
     await query.answer()
     
@@ -483,3 +484,29 @@ async def menu_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode='Markdown'
     )
 
+async def start_chat_libre(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Inicia el modo chat libre con IA"""
+    query = update.callback_query
+    await query.answer()
+    context.user_data["chat_mode"] = "free"
+
+    text = (
+        "💬 **MODO CHAT LIBRE ACTIVADO**\n\n"
+        "Ahora puedes preguntarme lo que quieras:\n"
+        "• Información sobre productos\n"
+        "• Consejos sobre pedidos\n"
+        "• Dudas generales\n\n"
+        "Escribe tu mensaje..."
+    )
+    
+    keyboard = [
+        [InlineKeyboardButton("🔙 Volver al Menú", callback_data="menu_volver")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    await query.edit_message_text(
+        text=text,
+        reply_markup=reply_markup,
+        parse_mode="Markdown"
+    )
+    logger.info("✅ Modo chat libre iniciado")

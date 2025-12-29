@@ -1,0 +1,54 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🍰 Milhojaldres</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .container { max-width: 600px; width: 100%; background: white; border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px 20px; text-align: center; }
+        .header h1 { font-size: 2.5em; margin-bottom: 10px; }
+        .content { padding: 40px; }
+        .btn { padding: 15px 30px; border: none; border-radius: 10px; font-size: 1.1em; font-weight: 600; cursor: pointer; margin: 10px 0; width: 100%; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4); }
+        .contact-info { background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🍰 Milhojaldres</h1>
+            <p>Milhojas y Postres Artesanales</p>
+        </div>
+        <div class="content">
+            <h2>✨ Nuestros Productos</h2>
+            <p>🎂 Tortas Frescas | 🍰 Ponqués | 🥐 Hojaldres | 🍪 Galletería</p>
+            
+            <button class="btn btn-primary" onclick="abrirTelegram()">💬 Chatear en Telegram</button>
+            <button class="btn btn-primary" onclick="abrirWhatsApp()">📱 Contactar por WhatsApp</button>
+            
+            <div class="contact-info">
+                <h3>📍 Contacto</h3>
+                <p><strong>WhatsApp:</strong> +57 301 4170313</p>
+                <p><strong>Puntos de Recogida:</strong><br>• Calle 96B #20D-70<br>• Carrera 81B #19B-80</p>
+                <p><strong>Horario:</strong> Lunes-Viernes 8AM-6PM | Sábados 9AM-5PM</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function abrirTelegram() {
+            window.open('https://t.me/milhojaldres_bot', '_blank');
+        }
+        function abrirWhatsApp() {
+            const numeroWhatsApp = '573014170313';
+            const mensaje = 'Hola! Me gustaría ordenar algunos productos.';
+            const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+    </script>
+</body>
+</html>

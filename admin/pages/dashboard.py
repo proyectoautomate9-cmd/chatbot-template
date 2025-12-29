@@ -119,7 +119,7 @@ def show_dashboard():
                 'fecha_orden': 'Fecha'
             })
             
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
         else:
             st.info("📭 No hay pedidos registrados")
         
@@ -140,7 +140,7 @@ def show_dashboard():
             df_week['fecha'] = pd.to_datetime(df_week['fecha_orden']).dt.date
             orders_per_day = df_week.groupby('fecha').size().reset_index(name='Pedidos')
             
-            st.line_chart(orders_per_day.set_index('fecha'), use_container_width=True)
+            st.line_chart(orders_per_day.set_index('fecha'), width='stretch')
         else:
             st.info("📊 No hay suficientes datos para la gráfica")
         

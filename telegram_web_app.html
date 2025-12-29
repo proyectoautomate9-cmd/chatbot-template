@@ -1,0 +1,116 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Milhojaldres - Chat</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: var(--tg-color-bg); color: var(--tg-color-text); display: flex; flex-direction: column; min-height: 100vh; }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; text-align: center; }
+        .header h1 { font-size: 1.5em; margin-bottom: 5px; }
+        .container { flex: 1; display: flex; flex-direction: column; padding: 10px; }
+        .products-section { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+        .category { margin-bottom: 20px; }
+        .category-title { font-weight: 600; padding: 10px; background: var(--tg-color-hint); border-radius: 8px; margin-bottom: 10px; }
+        .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .product-card { background: var(--tg-color-bg-secondary); border: 1px solid var(--tg-color-border); border-radius: 12px; padding: 12px; cursor: pointer; }
+        .product-emoji { font-size: 2em; display: block; margin-bottom: 8px; }
+        .product-price { color: #667eea; font-weight: 600; }
+        .btn { padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; width: 100%; margin: 5px 0; }
+        .btn-primary { background: #667eea; color: white; }
+        .info-box { background: rgba(102, 126, 234, 0.1); border-left: 4px solid #667eea; padding: 12px; border-radius: 8px; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🍰 Milhojaldres</h1>
+        <p>Milhojas y Postres Artesanales</p>
+    </div>
+
+    <div class="container">
+        <div class="products-section" id="productsSection">
+            <div style="text-align: center; padding: 20px;">⏳ Cargando productos...</div>
+        </div>
+
+        <div style="background: var(--tg-color-bg-secondary); border-radius: 12px; padding: 12px;">
+            <div class="info-box">
+                <div style="font-weight: 600; margin-bottom: 8px;">📍 Puntos de Recogida</div>
+                <div>• Calle 96B #20D-70<br>• Carrera 81B #19B-80<br><strong>Lunes-Viernes: 8AM - 6PM</strong></div>
+            </div>
+
+            <button class="btn btn-primary" onclick="contactarWhatsApp()">📱 WhatsApp</button>
+            <button class="btn btn-primary" onclick="hacerPedido()">🛒 Hacer un Pedido</button>
+        </div>
+    </div>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
+
+        const productos = {
+            '🎂 Tortas': [
+                { nombre: 'Cheese Cake', precio: 22000, emoji: '🧀' },
+                { nombre: 'Torta Brownie', precio: 26000, emoji: '🍫' },
+                { nombre: 'Mantecada', precio: 23000, emoji: '🍰' },
+            ],
+            '🍰 Ponqués': [
+                { nombre: 'Brownie Grande', precio: 28000, emoji: '🍫' },
+                { nombre: 'Liberal', precio: 23500, emoji: '✨' },
+            ],
+            '🥐 Hojaldres': [
+                { nombre: 'Pastel de Pollo', precio: 22000, emoji: '🍗' },
+                { nombre: 'Pasabocas', precio: 15000, emoji: '🥟' },
+            ],
+            '🍪 Galletería': [
+                { nombre: 'Galleta Simple', precio: 16000, emoji: '🍪' },
+                { nombre: 'Galleta c/ Chocolate', precio: 11000, emoji: '🍫' },
+            ],
+        };
+
+        function cargarProductos() {
+            const section = document.getElementById('productsSection');
+            section.innerHTML = '';
+
+            for (const [categoria, items] of Object.entries(productos)) {
+                const categoryDiv = document.createElement('div');
+                categoryDiv.className = 'category';
+                
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'category-title';
+                titleDiv.textContent = categoria;
+                categoryDiv.appendChild(titleDiv);
+
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'product-grid';
+
+                items.forEach(producto => {
+                    const card = document.createElement('div');
+                    card.className = 'product-card';
+                    card.innerHTML = `<div class="product-emoji">${producto.emoji}</div><div style="font-weight: 500;">${producto.nombre}</div><div class="product-price">$${producto.precio.toLocaleString('es-CO')}</div>`;
+                    gridDiv.appendChild(card);
+                });
+
+                categoryDiv.appendChild(gridDiv);
+                section.appendChild(categoryDiv);
+            }
+        }
+
+        function contactarWhatsApp() {
+            const numeroWhatsApp = '573014170313';
+            const mensaje = 'Hola! 👋 Me gustaría hacer un pedido.';
+            const url = `https://wa.me/${numeroWhatsApp}?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        }
+
+        function hacerPedido() {
+            tg.close();
+        }
+
+        cargarProductos();
+        tg.viewportStableReady();
+    </script>
+</body>
+</html>
