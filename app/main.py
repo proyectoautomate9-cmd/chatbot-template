@@ -4,6 +4,14 @@ Bot principal de Telegram para Milhojaldres
 
 import os
 import logging
+import sys
+from pathlib import Path
+
+# ⭐ Configurar paths de importación
+APP_DIR = Path(__file__).parent
+sys.path.insert(0, str(APP_DIR))
+sys.path.insert(0, str(APP_DIR.parent))
+
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -30,7 +38,7 @@ logger = logging.getLogger(__name__)
 # IMPORTS - HANDLERS PRINCIPALES
 # ==========================================
 
-from app.handlers.start import (
+from handlers.start import (
     start_command,
     show_main_menu,
     show_order_menu,
@@ -42,14 +50,13 @@ from app.handlers.start import (
     start_chat_libre
 )
 
-
-from app.handlers.chat_handler import handle_free_chat
+from handlers.chat_handler import handle_free_chat
 
 # ==========================================
 # IMPORTS - HANDLERS PRODUCTOS Y CARRITO
 # ==========================================
 
-from app.handlers.products import (
+from handlers.products import (
     show_products_by_category,
     show_product_detail,
     add_to_cart,
@@ -62,7 +69,7 @@ from app.handlers.products import (
 # IMPORTS - HANDLERS ADMIN
 # ==========================================
 
-from app.handlers.admin import (
+from handlers.admin import (
     admin_panel,
     admin_view_orders,
     admin_order_detail,
@@ -75,7 +82,7 @@ from app.handlers.admin import (
 # IMPORTS - HANDLERS PRE-ÓRDENES
 # ==========================================
 
-from app.handlers.preorders import (
+from handlers.preorders import (
     start_preorder,
     select_customer_type,
     receive_email,
@@ -102,11 +109,12 @@ from app.handlers.preorders import (
 # IMPORTS - HANDLERS CHAT IA
 # ==========================================
 
-from app.handlers.chat_handler import (
-    start_chat,
+from handlers.chat_handler import (
+    start_chat_libre,
     handle_chat_message,
     exit_chat
 )
+
 
 # ==========================================
 # FUNCIÓN PRINCIPAL
@@ -226,7 +234,7 @@ def main():
     # SECTION 7: CALLBACKS - CHAT IA
     # ==========================================
     
-    application.add_handler(CallbackQueryHandler(start_chat, pattern="^chat_libre$"))
+    application.add_handler(CallbackQueryHandler(start_chat_libre, pattern="^chat_libre$"))
     application.add_handler(CallbackQueryHandler(exit_chat, pattern="^exit_chat$"))
 
     # ==========================================
