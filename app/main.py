@@ -2,15 +2,20 @@
 Bot principal de Telegram para Milhojaldres
 """
 
+
 import os
 import logging
 import sys
+import threading
 from pathlib import Path
+from http.server import HTTPServer, BaseHTTPRequestHandler
+
 
 # ⭐ Configurar paths de importación
 APP_DIR = Path(__file__).parent
 sys.path.insert(0, str(APP_DIR))
 sys.path.insert(0, str(APP_DIR.parent))
+
 
 from telegram.ext import (
     Application,
@@ -22,11 +27,14 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
+
 # ==========================================
 # CONFIGURACIÓN INICIAL
 # ==========================================
 
+
 load_dotenv()
+
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -34,9 +42,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
 # ==========================================
 # IMPORTS - HANDLERS PRINCIPALES
 # ==========================================
+
 
 from handlers.start import (
     start_command,
@@ -50,11 +60,14 @@ from handlers.start import (
     start_chat_libre
 )
 
+
 from handlers.chat_handler import handle_free_chat
+
 
 # ==========================================
 # IMPORTS - HANDLERS PRODUCTOS Y CARRITO
 # ==========================================
+
 
 from handlers.products import (
     show_products_by_category,
@@ -65,9 +78,11 @@ from handlers.products import (
     confirm_order
 )
 
+
 # ==========================================
 # IMPORTS - HANDLERS ADMIN
 # ==========================================
+
 
 from handlers.admin import (
     admin_panel,
@@ -78,9 +93,11 @@ from handlers.admin import (
     ADMIN_IDS
 )
 
+
 # ==========================================
 # IMPORTS - HANDLERS PRE-ÓRDENES
 # ==========================================
+
 
 from handlers.preorders import (
     start_preorder,
@@ -105,9 +122,11 @@ from handlers.preorders import (
     CONFIRMING_PREORDER
 )
 
+
 # ==========================================
 # IMPORTS - HANDLERS CHAT IA
 # ==========================================
+
 
 from handlers.chat_handler import (
     start_chat_libre,
@@ -117,8 +136,40 @@ from handlers.chat_handler import (
 
 
 # ==========================================
+# CLASE HEALTH CHECK (PARA RENDER HTTP)
+# ==========================================
+
+
+class HealthCheck(BaseHTTPRequestHandler):
+    """Servidor HTTP simple para Render healthcheck"""
+    
+    def do_GET(self):
+        self.send_response(200)
+        self.end_headers()
+        self.wfile.write(b'Bot running')
+    
+    def log_message(self, format, *args):
+        """Silenciar logs del servidor HTTP"""
+        pass
+
+
+# ==========================================
+# FUNCIÓN PARA INICIAR SERVIDOR HTTP
+# ==========================================
+
+
+def start_http_server():
+    """Inicia servidor HTTP en background para Render"""
+    port = int(os.environ.get('PORT', 10000))
+    server = HTTPServer(('0.0.0.0', port), HealthCheck)
+    logger.info(f"🌐 HTTP Server iniciado en puerto {port}")
+    server.serve_forever()
+
+
+# ==========================================
 # FUNCIÓN PRINCIPAL
 # ==========================================
+
 
 def main():
     """
@@ -130,8 +181,10 @@ def main():
         logger.error("❌ TELEGRAM_BOT_TOKEN no encontrado en .env")
         return
 
+
     # Crear aplicación
     application = Application.builder().token(token).build()
+
 
     # ==========================================
     # SECTION 1: COMANDOS BASE
@@ -140,6 +193,7 @@ def main():
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("help", help_command))
     application.add_handler(CommandHandler("menu", menu_command))
+
 
     # ==========================================
     # SECTION 2: CONVERSATION HANDLER - PRE-ÓRDENES
@@ -190,8 +244,10 @@ def main():
     )
     application.add_handler(preorder_conv_handler)
 
+
     # ============ CHAT LIBRE ============
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_free_chat))
+
 
 
     # ==========================================
@@ -204,6 +260,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_info, pattern="^menu_informacion$"))
     application.add_handler(CallbackQueryHandler(show_contact, pattern="^menu_contacto$"))
 
+
     # ==========================================
     # SECTION 4: CALLBACKS - PRODUCTOS
     # ==========================================
@@ -212,6 +269,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^prod_"))
     application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^add_"))
 
+
     # ==========================================
     # SECTION 5: CALLBACKS - CARRITO
     # ==========================================
@@ -219,6 +277,7 @@ def main():
     application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))
     application.add_handler(CallbackQueryHandler(clear_cart, pattern="^clear_cart$"))
     application.add_handler(CallbackQueryHandler(confirm_order, pattern="^confirm_order$"))
+
 
     # ==========================================
     # SECTION 6: CALLBACKS - ADMIN
@@ -230,12 +289,14 @@ def main():
     application.add_handler(CallbackQueryHandler(admin_change_status, pattern="^admin_change_status_"))
     application.add_handler(CallbackQueryHandler(admin_stats, pattern="^admin_stats$"))
 
+
     # ==========================================
     # SECTION 7: CALLBACKS - CHAT IA
     # ==========================================
     
     application.add_handler(CallbackQueryHandler(start_chat_libre, pattern="^chat_libre$"))
     application.add_handler(CallbackQueryHandler(exit_chat, pattern="^exit_chat$"))
+
 
     # ==========================================
     # SECTION 8: INICIAR BOT
@@ -244,6 +305,7 @@ def main():
     logger.info("🚀 Bot iniciado correctamente")
     logger.info("🔗 Esperando mensajes...")
 
+
     # ==========================================
     # SECTION 9: MESSAGE HANDLER (SIEMPRE AL FINAL)
     # ==========================================
@@ -251,21 +313,38 @@ def main():
     
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_chat_message))
 
+
     # Log TODOS los callbacks
     async def log_update(update, context):
         if update.callback_query:
             logger.info(f"🔍 CALLBACK: {update.callback_query.data}")
 
+
     application.add_handler(CallbackQueryHandler(log_update), group=-1)
 
+
+    # ==========================================
+    # SECTION 10: INICIAR SERVIDOR HTTP (RENDER)
+    # ==========================================
+    
+    http_thread = threading.Thread(target=start_http_server, daemon=True)
+    http_thread.start()
+    logger.info("✅ Servidor HTTP iniciado en background para Render")
+
+
+    # ==========================================
     # RUN POLLING
+    # ==========================================
+    
     application.run_polling(allowed_updates=["message", "callback_query"])
+
 
 
    
 # ==========================================
 # ENTRY POINT
 # ==========================================
+
 
 if __name__ == '__main__':
     main()
