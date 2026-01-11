@@ -2,13 +2,16 @@
 Handler para chat libre con IA
 """
 
+
 import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from app.services.ai_service import AIService
 
+
 logger = logging.getLogger(__name__)
 ai_service = AIService()
+
 
 
 async def start_chat_libre(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -20,6 +23,7 @@ async def start_chat_libre(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     
     # Marcar que el usuario está en modo chat libre
     context.user_data['chat_libre_mode'] = True
+    context.user_data['chat_history'] = []  # Inicializar historial
     
     keyboard = [
         [InlineKeyboardButton("❌ Salir del Chat", callback_data="exit_chat")],
@@ -43,6 +47,7 @@ async def start_chat_libre(update: Update, context: ContextTypes.DEFAULT_TYPE) -
     logger.info(f"Usuario {update.effective_user.id} inició chat libre")
 
 
+
 async def handle_free_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Maneja mensajes en modo chat libre (cuando el usuario escribe sin estar en conversación)
@@ -59,7 +64,24 @@ async def handle_free_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         await update.message.chat.send_action("typing")
         
         # Obtener respuesta de IA
-        response = await ai_service.get_chat_response(user_message, user_id)
+        response_data = ai_service.get_response(
+            query=user_message,
+            user_id=user_id,
+            chat_history=context.user_data.get('chat_history', [])
+        )
+        
+        response = response_data.get('respuesta', 'Lo siento, no pude procesar tu mensaje.')
+        
+        # Actualizar historial
+        if 'chat_history' not in context.user_data:
+            context.user_data['chat_history'] = []
+        
+        context.user_data['chat_history'].append({'role': 'user', 'content': user_message})
+        context.user_data['chat_history'].append({'role': 'assistant', 'content': response})
+        
+        # Mantener solo últimos 10 mensajes
+        if len(context.user_data['chat_history']) > 10:
+            context.user_data['chat_history'] = context.user_data['chat_history'][-10:]
         
         # Enviar respuesta
         await update.message.reply_text(response, parse_mode="Markdown")
@@ -72,6 +94,7 @@ async def handle_free_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
             "❌ Ocurrió un error procesando tu mensaje. "
             "Por favor intenta de nuevo."
         )
+
 
 
 async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -91,7 +114,24 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         await update.message.chat.send_action("typing")
         
         # Obtener respuesta de IA
-        response = await ai_service.get_chat_response(user_message, user_id)
+        response_data = ai_service.get_response(
+            query=user_message,
+            user_id=user_id,
+            chat_history=context.user_data.get('chat_history', [])
+        )
+        
+        response = response_data.get('respuesta', 'Lo siento, no pude procesar tu mensaje.')
+        
+        # Actualizar historial
+        if 'chat_history' not in context.user_data:
+            context.user_data['chat_history'] = []
+        
+        context.user_data['chat_history'].append({'role': 'user', 'content': user_message})
+        context.user_data['chat_history'].append({'role': 'assistant', 'content': response})
+        
+        # Mantener solo últimos 10 mensajes
+        if len(context.user_data['chat_history']) > 10:
+            context.user_data['chat_history'] = context.user_data['chat_history'][-10:]
         
         # Botón para salir del chat
         keyboard = [
@@ -117,6 +157,7 @@ async def handle_chat_message(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
+
 async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     """
     Sale del modo de chat libre
@@ -126,6 +167,7 @@ async def exit_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     
     # Desactivar modo chat libre
     context.user_data['chat_libre_mode'] = False
+    context.user_data['chat_history'] = []  # Limpiar historial
     
     keyboard = [
         [InlineKeyboardButton("🛒 Hacer Pedido", callback_data="menu_hacer_pedido")],
