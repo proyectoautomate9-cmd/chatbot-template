@@ -71,22 +71,47 @@ async def handle_free_chat(update: Update, context: ContextTypes.DEFAULT_TYPE) -
         )
         
         response = response_data.get('respuesta', 'Lo siento, no pude procesar tu mensaje.')
+        intent = response_data.get('intent', 'info')
+        suggestions = response_data.get('suggested_products', [])
         
-        # Actualizar historial
+        # Actualizar historial (guardamos el raw json string para contexto futuro si es necesario, 
+        # o solo texto. Por ahora texto es mas seguro para no confundir al modelo con json parciales)
         if 'chat_history' not in context.user_data:
             context.user_data['chat_history'] = []
         
         context.user_data['chat_history'].append({'role': 'user', 'content': user_message})
+        # Guardamos la respuesta textual en el historial
         context.user_data['chat_history'].append({'role': 'assistant', 'content': response})
         
         # Mantener solo últimos 10 mensajes
         if len(context.user_data['chat_history']) > 10:
             context.user_data['chat_history'] = context.user_data['chat_history'][-10:]
+            
+        # Generar botones si hay intención de compra
+        reply_markup = None
+        if intent == 'purchase' and suggestions:
+            keyboard = []
+            for prod in suggestions:
+                p_id = prod.get('product_id')
+                p_name = prod.get('name', 'Producto')
+                qty = prod.get('quantity', 1)
+                
+                if p_id:
+                     keyboard.append([
+                        InlineKeyboardButton(
+                            f"🛒 Agregar {p_name} (x{qty})", 
+                            callback_data=f"smart_add_{p_id}_{qty}"
+                        )
+                    ])
+            
+            if keyboard:
+                keyboard.append([InlineKeyboardButton("🔙 Menú Principal", callback_data="menu_volver")])
+                reply_markup = InlineKeyboardMarkup(keyboard)
         
         # Enviar respuesta
-        await update.message.reply_text(response, parse_mode="Markdown")
+        await update.message.reply_text(response, parse_mode="Markdown", reply_markup=reply_markup)
         
-        logger.info(f"Chat libre procesado para usuario {user_id}")
+        logger.info(f"Chat libre procesado. Intent: {intent}")
         
     except Exception as e:
         logger.error(f"Error en handle_free_chat: {e}")

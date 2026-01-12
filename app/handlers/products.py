@@ -21,26 +21,17 @@ async def show_products_by_category(update: Update, context: ContextTypes.DEFAUL
     # Extraer category_id del callback_data (formato: cat_1, cat_2, etc.)
     category_id = int(query.data.split('_')[1])
 
-    supabase = get_supabase()
+    from config.database import db
 
     # Obtener información de la categoría
-    cat_response = supabase.table("product_categories")\
-        .select("*")\
-        .eq("category_id", category_id)\
-        .single()\
-        .execute()
-
-    category = cat_response.data
+    category = db.get_category(category_id)
+    
+    if not category:
+        await query.edit_message_text("❌ Error obteniendo categoría.")
+        return
 
     # Obtener productos de la categoría
-    prods_response = supabase.table("products")\
-        .select("*")\
-        .eq("category_id", category_id)\
-        .eq("activo", True)\
-        .order("nombre")\
-        .execute()
-
-    products = prods_response.data
+    products = db.get_products_by_category(category_id)
 
     emoji = category.get('icon_emoji', '📦')
     cat_name = category['name']
@@ -108,16 +99,14 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
     # Extraer product_id del callback_data (formato: prod_123)
     product_id = int(query.data.split('_')[1])
 
-    supabase = get_supabase()
+    from config.database import db
 
     # Obtener producto con categoría
-    response = supabase.table("products")\
-        .select("*, product_categories(name, icon_emoji)")\
-        .eq("product_id", product_id)\
-        .single()\
-        .execute()
-
-    product = response.data
+    product = db.get_product_by_id(product_id)
+    
+    if not product:
+        await query.answer("❌ Producto no encontrado", show_alert=True)
+        return
 
     # Construir mensaje
     nombre = product['nombre']
@@ -140,21 +129,24 @@ async def show_product_detail(update: Update, context: ContextTypes.DEFAULT_TYPE
         total_price = sum(item['precio'] * item['cantidad'] for item in cart)
         text += f"\n🛒 Tu carrito: {total_items} producto{'s' if total_items > 1 else ''} | ${total_price:,.0f}"
 
-    # Botones mejorados
+    # Botones mejorados (B2B + Standard)
     keyboard = [
         [
-            InlineKeyboardButton(
-                "➕ Agregar al Carrito",
-                callback_data=f"add_{product_id}"
-            ),
+            InlineKeyboardButton("➕ Agregar 1", callback_data=f"smart_add_{product_id}_1"),
+        ],
+        [
+            InlineKeyboardButton("📦 +6", callback_data=f"smart_add_{product_id}_6"),
+            InlineKeyboardButton("📦 +12", callback_data=f"smart_add_{product_id}_12"),
+             # Opción para pedir cantidad personalizada via chat
+            InlineKeyboardButton("💬 Otra Cantidad", callback_data="chat_libre"),
         ]
     ]
 
     # Si hay items en el carrito, agregar botón de ver carrito
-    if cart:
+    if cart_len := len(cart):
         keyboard.append([
             InlineKeyboardButton(
-                f"🛒 Ver Carrito ({len(cart)})",
+                f"🛒 Ver Carrito ({cart_len})",
                 callback_data="view_cart"
             )
         ])
@@ -194,14 +186,12 @@ async def add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data['cart'] = []
 
     # Obtener info del producto
-    supabase = get_supabase()
-    response = supabase.table("products")\
-        .select("*, product_categories(name, icon_emoji)")\
-        .eq("product_id", product_id)\
-        .single()\
-        .execute()
-
-    product = response.data
+    from config.database import db
+    product = db.get_product_by_id(product_id)
+    
+    if not product:
+        await query.answer("❌ Error agregando producto", show_alert=True)
+        return
 
     # Agregar al carrito
     context.user_data['cart'].append({
@@ -600,13 +590,6 @@ async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
         import traceback
         traceback.print_exc()
 
-        text = (
-            "❌ **ERROR AL PROCESAR PEDIDO**\n\n"
-            "Hubo un problema al guardar tu pedido.\n"
-            "Por favor intenta de nuevo o contacta soporte.\n\n"
-            f"Error: {str(e)[:100]}"
-        )
-
         keyboard = [
             [InlineKeyboardButton("🔄 Intentar de nuevo", callback_data="view_cart")],
             [InlineKeyboardButton("🏠 Menú Principal", callback_data="menu_volver")]
@@ -618,3 +601,78 @@ async def confirm_order(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=reply_markup,
             parse_mode='Markdown'
         )
+
+
+async def smart_add_to_cart(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    Agrega producto al carrito con cantidad específica desde el chat inteligente
+    Callback: smart_add_<product_id>_<quantity>
+    """
+    query = update.callback_query
+    
+    # Extraer datos: smart_add_123_5
+    parts = query.data.split('_')
+    product_id = int(parts[2])
+    quantity = int(parts[3])
+
+    # Inicializar carrito si no existe
+    if 'cart' not in context.user_data:
+        context.user_data['cart'] = []
+
+    # Obtener info del producto
+    from config.database import db
+    product = db.get_product_by_id(product_id)
+    
+    if not product:
+        await query.answer("❌ Error: Producto no encontrado", show_alert=True)
+        return
+
+    # Agregar al carrito
+    context.user_data['cart'].append({
+        'product_id': product_id,
+        'nombre': product['nombre'],
+        'precio': product['precio'],
+        'cantidad': quantity
+    })
+
+    logger.info(f"Smart add: {quantity}x {product['nombre']} al carrito")
+
+    # Calcular total del carrito
+    cart = context.user_data['cart']
+    total_items = len(cart)
+    total_price = sum(item['precio'] * item['cantidad'] for item in cart)
+
+    # Mensaje de confirmación
+    await query.answer(f"✅ Agregado: {quantity}x {product['nombre']}", show_alert=False)
+
+    text = f"✅ **PRODUCTO AGREGADO DESDE EL CHAT**\n\n"
+    text += f"📦 {quantity}x {product['nombre']}\n"
+    text += f"💰 ${product['precio'] * quantity:,.0f}\n\n"
+    text += f"─────────────────────\n"
+    text += f"🛒 **Tu carrito:** {total_items} items | ${total_price:,.0f}\n\n"
+    text += "¿Qué deseas hacer?"
+
+    # Botones de acción con cantidades B2B
+    keyboard = [
+        [
+            InlineKeyboardButton("🛒 +1", callback_data=f"smart_add_{product_id}_1"),
+            InlineKeyboardButton("🛒 +6", callback_data=f"smart_add_{product_id}_6"),
+            InlineKeyboardButton("🛒 +12", callback_data=f"smart_add_{product_id}_12"),
+        ],
+        [InlineKeyboardButton("🛒 Ver Carrito", callback_data="view_cart")],
+        [InlineKeyboardButton("🔙 Volver a Productos", callback_data=f"cat_{product['category_id']}")],
+        [InlineKeyboardButton("🏠 Menú Principal", callback_data="menu_volver")]
+    ]
+
+    reply_markup = InlineKeyboardMarkup(keyboard)
+    
+    try:
+        if query.message.content_type == 'photo':
+             await query.message.delete()
+             await query.message.reply_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')
+        else:
+             await query.edit_message_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')
+    except Exception as e:
+        logger.error(f"Error editando mensaje producto: {e}")
+        # Fallback por si acaso
+        await query.message.reply_text(text=text, reply_markup=reply_markup, parse_mode='Markdown')

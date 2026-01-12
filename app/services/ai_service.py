@@ -107,77 +107,119 @@ class AIService:
             Dict con respuesta y confianza
         """
         try:
+            # Obtener productos reales de la BD
+            try:
+                from config.database import db
+                products = db.get_all_products()
+                
+                products_text = "NUESTROS PRODUCTOS DISPONIBLES (USAR SOLO ESTOS):\n"
+                if products:
+                    for p in products:
+                        products_text += f"- {p.get('nombre')} (${p.get('precio', 0):,.0f}): {p.get('descripcion', '')}\n"
+                else:
+                    products_text += "No hay productos disponibles en este momento.\n"
+                    
+            except Exception as e:
+                logger.error(f"Error obteniendo productos para prompt: {e}")
+                products_text = "Error cargando lista de productos. Por favor sugiere ver el menú."
+
             # Contexto del negocio (System message)
-            system_message = """Eres un asistente virtual de **Milhoja Dres**, una pastelería artesanal en Bogotá, Colombia.
-
+            system_message = f"""Eres un asistente virtual de **Milhoja Dres**.
 INFORMACIÓN CLAVE:
-- Productos: Milhojas artesanales, postres y bebidas
-- Puntos de recogida:
-  • Calle 96b #20d-70
-  • Cra 81b #19b-80
-- Horarios: Lunes a Viernes 8:00 AM - 6:00 PM, Sábados 9:00 AM - 5:00 PM, Domingos cerrado
-- NO hacemos domicilios directos (el cliente puede enviar su domiciliario)
-- Métodos de pago: Nequi, Daviplata (3014170313)
-- Se requiere anticipo del 50% para pedidos grandes
-- Pedidos grandes: 2 días de anticipación
-- WhatsApp contacto: 3014170313
+{products_text}
 
-INSTRUCCIONES:
-- Responde de forma amigable, clara y breve (máximo 3-4 líneas)
-- Si la pregunta es sobre pedidos o productos específicos, sugiere usar el menú del bot
-- Si no sabes algo con certeza, indica que pueden contactar vía WhatsApp
-- Usa emojis ocasionalmente (pero sin abusar)
-- Siempre habla en español colombiano natural"""
+TU OBJETIVO:
+1. Responder amablemente al usuario.
+2. DETECTAR INTENCIÓN DE COMPRA. Si el usuario dice "quiero 12", ASUME que son 12 UNIDADES del producto. NO corrijas sobre "porciones" a menos que sea algo ilógico (ej. 0.5 milhojas).
+3. FACILITAR LA COMPRA. Siempre muestra el botón de compra si hay una intención clara.
+
+FORMATO DE RESPUESTA (JSON OBLIGATORIO):
+Debes responder SIEMPRE con un objeto JSON válido con esta estructura:
+{{
+  "response": "Tu respuesta amable en texto plano aquí. Si piden 12 milhojas, confirma el precio total (12 * precio unitario) y diles que pueden agregarlas abajo.",
+  "intent": "purchase" | "info" | "greeting" | "other",
+  "suggested_products": [
+    {{
+      "product_id": 123,
+      "name": "Nombre exacto del producto",
+      "quantity": 12,  # Cantidad que el usuario pidió
+      "price": 15000
+    }}
+  ]
+}}
+
+REGLAS DE NEGOCIO:
+- "Caja" o "Unidad" usualmente se refieren a 1 item del inventario.
+- Si el usuario pide "12 milhojas", son 12 items (product_id=...). NO las dividas por 6.
+- Pedidos B2B: Aceptamos cantidades grandes.
+- NO inventes productos. Si no existe, explica que no lo vendemos.
+"""
 
             # Construir mensajes
             messages = [{"role": "system", "content": system_message}]
             
-            # Agregar historial si existe (últimos 6 mensajes = 3 intercambios)
+            # Agregar historial si existe
             if chat_history and len(chat_history) > 0:
                 for msg in chat_history[-6:]:
-                    messages.append({
-                        "role": msg['role'],
-                        "content": msg['content']
-                    })
+                    try:
+                        # Intentar parsear si el historial previo era JSON (para contexto)
+                        content = msg['content']
+                         # Si es output del asst y parece json, extraer solo la parte de texto para contexto
+                        if msg['role'] == 'assistant' and content.strip().startswith('{'):
+                             import json
+                             try:
+                                 data = json.loads(content)
+                                 content = data.get('response', content)
+                             except:
+                                 pass
+                        
+                        messages.append({
+                            "role": msg['role'],
+                            "content": content
+                        })
+                    except:
+                        pass
             
             # Agregar pregunta actual
             messages.append({"role": "user", "content": query})
             
-            # Llamar a OpenAI
+            # Llamar a OpenAI con JSON Mode
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 temperature=0.7,
-                max_tokens=300,
-                top_p=0.9
+                max_tokens=500,
+                top_p=0.9,
+                response_format={ "type": "json_object" }
             )
             
-            respuesta_texto = response.choices[0].message.content.strip()
+            response_content = response.choices[0].message.content.strip()
             
-            # Calcular confianza basada en finish_reason
-            confianza = 0.75  # Por defecto
+            # Parsear JSON
+            import json
+            try:
+                parsed_response = json.loads(response_content)
+                respuesta_texto = parsed_response.get('response', 'Lo siento, no pude procesar la respuesta.')
+                intent = parsed_response.get('intent', 'info')
+                suggestions = parsed_response.get('suggested_products', [])
+            except Exception as e:
+                logger.error(f"Error parsing AI JSON: {e}")
+                respuesta_texto = response_content
+                intent = 'info'
+                suggestions = []
             
-            # Si la respuesta se completó correctamente
-            if response.choices[0].finish_reason == "stop":
-                confianza = 0.85
+            # Calcular confianza (simplificado)
+            confianza = 0.9 if intent == 'purchase' else 0.8
             
-            # Aumentar si respuesta tiene info específica del negocio
-            if any(keyword in respuesta_texto.lower() for keyword in 
-                   ['milhoja', 'bogotá', '3014170313', 'calle 96', 'cra 81', 'nequi', 'daviplata']):
-                confianza = min(confianza + 0.1, 0.95)
-            
-            # Disminuir si la respuesta es vaga o indica desconocimiento
-            if any(phrase in respuesta_texto.lower() for phrase in 
-                   ['no sé', 'no estoy seguro', 'no tengo información', 'no puedo', 'disculpa']):
-                confianza = 0.5
-            
-            logger.info(f"✅ Respuesta OpenAI generada (confianza: {confianza})")
+            logger.info(f"✅ Respuesta OpenAI: Intent={intent}, Sugerencias={len(suggestions)}")
             
             return {
                 "respuesta": respuesta_texto,
+                "intent": intent,
+                "suggested_products": suggestions,
                 "confianza": confianza,
                 "fuente": "openai",
-                "tokens_usados": response.usage.total_tokens
+                "raw_json": parsed_response if 'parsed_response' in locals() else {}
             }
             
         except Exception as e:

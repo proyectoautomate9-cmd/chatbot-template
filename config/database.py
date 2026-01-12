@@ -18,11 +18,12 @@ logger = logging.getLogger(__name__)
 # ============================================
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+# Preferir Service Key para backend/admin (bypasses RLS)
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_KEY") or os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
     raise ValueError(
-        "❌ SUPABASE_URL y SUPABASE_KEY deben estar en .env"
+        "❌ SUPABASE_URL y SUPABASE_KEY (o SUPABASE_SERVICE_KEY) deben estar en .env"
     )
 
 # Cliente global
@@ -155,6 +156,138 @@ class DatabaseService:
             logger.error(f"Error actualizando preferencias: {e}")
             return False
 
+
+
+
+    # === PRODUCTOS ===
+
+    def get_all_products(self) -> List[Dict]:
+        """Obtiene todos los productos activos de la base de datos"""
+        try:
+            # Mapeamos las columnas nuevas a las que espera el bot
+            # Nota: 'activo' es la columna correcta no 'is_active'
+            response = (
+                self.client.table("products")
+                .select("*, category_id") # Select * es más seguro para traer todo
+                .eq("is_available", True) # User script added this
+                .order("categoria")
+                .execute()
+            )
+            
+            # Post-procesamiento para compatibilidad
+            products = []
+            for p in response.data:
+                p['disponible'] = p.get('is_available', True)
+                p['activo'] = p.get('activo', True) # La columna se llama activo
+                products.append(p)
+                
+            logger.info(f"✅ {len(products)} productos recuperados de DB")
+            return products
+        except Exception as e:
+            logger.error(f"Error obteniendo productos: {e}")
+            return self._get_mock_products()
+            
+    def get_products_by_category(self, category_id: int) -> List[Dict]:
+        """Obtiene productos por categoría con fallback"""
+        try:
+            response = self.client.table("products")\
+                .select("*")\
+                .eq("category_id", category_id)\
+                .eq("activo", True)\
+                .order("nombre")\
+                .execute()
+                
+            # Compatibilidad
+            products = []
+            for p in response.data:
+                p['disponible'] = p.get('is_available', True)
+                p['activo'] = p.get('activo', True)
+                products.append(p)
+                
+            return products
+        except Exception as e:
+            logger.error(f"Error getting products by category: {e}")
+            # Mock fallback logic
+            mocks = self._get_mock_products()
+            return [p for p in mocks if p.get('category_id', 1) == category_id]
+            
+    def get_product_by_id(self, product_id: int) -> Optional[Dict]:
+        """Obtiene detalle de producto por ID con fallback"""
+        try:
+            response = self.client.table("products")\
+                .select("*, product_categories(name, icon_emoji)")\
+                .eq("product_id", product_id)\
+                .single()\
+                .execute()
+                
+            p = response.data
+            if p:
+                p['disponible'] = p.get('is_available', True)
+                p['activo'] = p.get('activo', True)
+            return p
+            
+        except Exception as e:
+            logger.error(f"Error getting product {product_id}: {e}")
+            mocks = self._get_mock_products()
+            filtered = [p for p in mocks if p['product_id'] == product_id]
+            return filtered[0] if filtered else None
+
+    def get_category(self, category_id: int) -> Optional[Dict]:
+        """Obtiene categoría por ID con fallback"""
+        try:
+            response = self.client.table("product_categories")\
+                .select("*")\
+                .eq("category_id", category_id)\
+                .single()\
+                .execute()
+            return response.data
+        except Exception as e:
+            logger.error(f"Error getting category {category_id}: {e}")
+            # Mock categories
+            if category_id == 1:
+                return {'category_id': 1, 'name': 'Milhojas', 'icon_emoji': '🍰'}
+            elif category_id == 2:
+                return {'category_id': 2, 'name': 'Bebidas', 'icon_emoji': '☕'}
+            return {'category_id': category_id, 'name': 'General', 'icon_emoji': '📦'}
+
+    def _get_mock_products(self) -> List[Dict]:
+        """Retorna productos fake para pruebas cuando falla la BD"""
+        logger.warning("⚠️ Usando productos MOCK (Base de datos falló)")
+        return [
+            {
+                "product_id": 1, 
+                "nombre": "Milhoja Tradicional (Demo)", 
+                "precio": 5000, 
+                "descripcion": "Deliciosa milhoja con arequipe casero (Datos de prueba).",
+                "categoria": "Milhojas", 
+                "category_id": 1,
+                "activo": True,
+                "disponible": True,
+                "product_categories": {'name': 'Milhojas', 'icon_emoji': '🍰'}
+            },
+            {
+                "product_id": 2, 
+                "nombre": "Milhoja Chantilly (Demo)", 
+                "precio": 6000, 
+                "descripcion": "Milhoja con suave crema chantilly (Datos de prueba).",
+                "categoria": "Milhojas", 
+                "category_id": 1,
+                "activo": True,
+                "disponible": True,
+                "product_categories": {'name': 'Milhojas', 'icon_emoji': '🍰'}
+            },
+            {
+                "product_id": 3, 
+                "nombre": "Café Americano (Demo)", 
+                "precio": 3500, 
+                "descripcion": "Café recién molido (Datos de prueba).",
+                "categoria": "Bebidas", 
+                "category_id": 2,
+                "activo": True,
+                "disponible": True,
+                "product_categories": {'name': 'Bebidas', 'icon_emoji': '☕'}
+            }
+        ]
 
 # ============================================
 # INSTANCIA GLOBAL (opcional)

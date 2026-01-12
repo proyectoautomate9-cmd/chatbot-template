@@ -47,6 +47,7 @@ from app.handlers.products import (
     view_cart,
     clear_cart,
     confirm_order,
+    smart_add_to_cart,
 )
 
 # ===== Admin =====
@@ -161,6 +162,7 @@ def main():
     application.add_handler(CallbackQueryHandler(show_products_by_category, pattern="^cat_"))
     application.add_handler(CallbackQueryHandler(show_product_detail, pattern="^prod_"))
     application.add_handler(CallbackQueryHandler(add_to_cart, pattern="^add_"))
+    application.add_handler(CallbackQueryHandler(smart_add_to_cart, pattern="^smart_add_"))
 
     # ============ CALLBACKS: CARRITO ============
     application.add_handler(CallbackQueryHandler(view_cart, pattern="^view_cart$"))

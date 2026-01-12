@@ -11,10 +11,25 @@ from config.database import get_supabase
 def show_orders_management():
     """Página de gestión de pedidos."""
     
-    st.title("📦 Gestión de Pedidos")
-    st.markdown("---")
-    
     supabase = get_supabase()
+    
+    # Get pending count for header
+    pending = supabase.table("orders").select("order_id").eq("estado", "pending").execute()
+    pending_count = len(pending.data) if pending.data else 0
+    
+    # Header with pending badge
+    col_title, col_badge = st.columns([3, 1])
+    with col_title:
+        st.markdown("### 📦 Gestión de Pedidos")
+    with col_badge:
+        if pending_count > 0:
+            st.markdown(f"""
+                <div style="background: rgba(243, 156, 18, 0.2); color: #F39C12; padding: 0.5rem 1rem; border-radius: 12px; text-align: center; font-weight: 600; border: 1px solid rgba(243, 156, 18, 0.3);">
+                    ⏳ {pending_count} pendientes
+                </div>
+            """, unsafe_allow_html=True)
+    
+    st.markdown("---")
     
     # ============================================
     # FILTROS
@@ -22,10 +37,21 @@ def show_orders_management():
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        filter_status = st.selectbox(
+        status_map_filter = {
+            "Todos": "Todos",
+            "Pendiente": "pending",
+            "Confirmado": "confirmed",
+            "En Preparación": "preparing",
+            "Listo para Entrega": "ready",
+            "Entregado": "delivered",
+            "Cancelado": "cancelled"
+        }
+        
+        filter_status_label = st.selectbox(
             "📊 Estado",
-            ["Todos", "pending", "confirmed", "preparing", "ready", "delivered", "cancelled"]
+            list(status_map_filter.keys())
         )
+        filter_status = status_map_filter[filter_status_label]
     
     with col2:
         filter_date = st.date_input(
@@ -90,8 +116,18 @@ def show_orders_management():
             else:
                 expanded = False
             
+            status_translation = {
+                'pending': 'PENDIENTE',
+                'confirmed': 'CONFIRMADO',
+                'preparing': 'EN PREPARACIÓN',
+                'ready': 'LISTO',
+                'delivered': 'ENTREGADO',
+                'cancelled': 'CANCELADO'
+            }
+            estado_es = status_translation.get(order['estado'], order['estado'].upper())
+            
             with st.expander(
-                f"{emoji} Pedido #{order['order_id']} - {order['estado'].upper()} - ${order['total']:,.0f}",
+                f"{emoji} Pedido #{order['order_id']} - {estado_es} - ${order['total']:,.0f}",
                 expanded=expanded
             ):
                 col_info, col_actions = st.columns([2, 1])
@@ -121,13 +157,22 @@ def show_orders_management():
                 with col_actions:
                     st.markdown("**🔄 Cambiar Estado:**")
                     
-                    estados = ["pending", "confirmed", "preparing", "ready", "delivered", "cancelled"]
-                    current_index = estados.index(order['estado']) if order['estado'] in estados else 0
+                    status_options = {
+                        "pending": "🕐 Pendiente",
+                        "confirmed": "✅ Confirmado",
+                        "preparing": "👨‍🍳 Preparando",
+                        "ready": "📦 Listo para Entrega",
+                        "delivered": "🚚 Entregado",
+                        "cancelled": "❌ Cancelado"
+                    }
                     
-                    new_status = st.selectbox(
+                    current_status = order['estado']
+                    
+                    new_status_key = st.selectbox(
                         "Nuevo estado",
-                        estados,
-                        index=current_index,
+                        options=list(status_options.keys()),
+                        format_func=lambda x: status_options[x],
+                        index=list(status_options.keys()).index(current_status) if current_status in status_options else 0,
                         key=f"status_{order['order_id']}"
                     )
                     
@@ -135,12 +180,12 @@ def show_orders_management():
                         try:
                             # Actualizar estado
                             supabase.table("orders")\
-                                .update({"estado": new_status})\
+                                .update({"estado": new_status_key})\
                                 .eq("order_id", order['order_id'])\
                                 .execute()
                             
-                            st.success(f"✅ Estado actualizado a: **{new_status}**")
-                            st.info("🔔 El cliente recibirá notificación automática (Feature 1)")
+                            st.success(f"✅ Estado actualizado a: **{status_options.get(new_status_key, new_status_key)}**")
+                            st.info("🔔 El cliente recibirá notificación automática")
                             
                             # Recargar
                             st.rerun()

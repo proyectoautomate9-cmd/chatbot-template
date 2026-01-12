@@ -1,0 +1,326 @@
+/* ============================================
+   ADMIN DASHBOARD - DARK GLASSMORPHISM
+   Milhojaldres Bot
+   ============================================ */
+
+/* Import Google Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* ============================================
+   ROOT VARIABLES (Dark Theme)
+   ============================================ */
+:root {
+    --primary-color: #00B4D8;
+    --primary-dark: #0077B6;
+    --primary-light: #90E0EF;
+    --secondary-color: #1E293B;
+    --accent-green: #2ECC71;
+    --accent-orange: #F39C12;
+    --accent-red: #E74C3C;
+    --accent-purple: #9B59B6;
+
+    /* Dark Theme Colors */
+    --bg-dark: #0F172A;
+    /* Deep Slate */
+    --bg-card: rgba(30, 41, 59, 0.7);
+    /* Glass Semi-transparent */
+    --bg-sidebar: #0F172A;
+
+    --text-primary: #F8FAFC;
+    --text-secondary: #CBD5E1;
+    /* Lighter slate for better contrast */
+    --text-light: #F8FAFC;
+
+    --glass-border: rgba(255, 255, 255, 0.1);
+    --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    --border-radius: 16px;
+    --border-radius-sm: 12px;
+}
+
+/* ============================================
+   GLOBAL STYLES
+   ============================================ */
+.stApp {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    background: #0F172A !important;
+    /* Deep dark background */
+}
+
+/* Main content area */
+.main .block-container {
+    padding: 2rem 3rem !important;
+    max-width: 1400px !important;
+}
+
+/* Fix visibility of headings and titles */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.stMarkdown p,
+.stMarkdown span {
+    color: var(--text-primary) !important;
+}
+
+/* Streamlit specific label coloring */
+label,
+.stMetric label {
+    color: var(--text-secondary) !important;
+}
+
+/* Ensure sub-labels aren't white */
+[data-testid="stHeader"] {
+    background-color: rgba(15, 23, 42, 0.8) !important;
+    backdrop-filter: blur(10px) !important;
+}
+
+[data-testid="stHeader"] * {
+    color: var(--text-primary) !important;
+}
+
+/* ============================================
+   SIDEBAR STYLING
+   ============================================ */
+[data-testid="stSidebar"] {
+    background: #0F172A !important;
+    border-right: 1px solid var(--glass-border) !important;
+}
+
+[data-testid="stSidebar"] .stMarkdown,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] .stRadio label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] span {
+    color: #F1F5F9 !important;
+    font-size: 1rem !important;
+}
+
+[data-testid="stSidebar"] hr {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Sidebar navigation buttons */
+[data-testid="stSidebar"] .stRadio>div {
+    gap: 0.75rem !important;
+}
+
+[data-testid="stSidebar"] .stRadio>div>label {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-radius: 12px !important;
+    padding: 1rem 1.25rem !important;
+    margin: 0 !important;
+    transition: all 0.2s ease !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    font-size: 1.1rem !important;
+    font-weight: 500 !important;
+}
+
+[data-testid="stSidebar"] .stRadio>div>label:hover {
+    background: rgba(0, 180, 216, 0.15) !important;
+    border-color: rgba(0, 180, 216, 0.4) !important;
+    transform: translateX(4px) !important;
+}
+
+[data-testid="stSidebar"] .stRadio>div>label[data-checked="true"],
+[data-testid="stSidebar"] .stRadio>div>label[data-checked="true"] span,
+[data-testid="stSidebar"] .stRadio>div>label[data-checked="true"] p {
+    background: linear-gradient(135deg, #00B4D8 0%, #0077B6 100%) !important;
+    border-color: #00B4D8 !important;
+    box-shadow: 0 4px 15px rgba(0, 180, 216, 0.3) !important;
+    color: #FFFFFF !important;
+}
+
+[data-testid="stSidebar"] .stRadio>div>label[data-checked="true"] * {
+    color: #FFFFFF !important;
+}
+
+/* ============================================
+   KPI CARDS (Glassmorphism)
+   ============================================ */
+.kpi-card {
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    box-shadow: var(--glass-shadow);
+    border: 1px solid var(--glass-border);
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.kpi-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(0, 180, 216, 0.4);
+}
+
+.kpi-label {
+    font-size: 0.9rem;
+    /* Increased from 0.75rem */
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 0.75rem;
+}
+
+.kpi-value {
+    font-size: 2.5rem;
+    /* Increased from 2rem */
+    font-weight: 800;
+    color: white;
+    line-height: 1.1;
+}
+
+.kpi-change {
+    font-size: 1rem;
+    /* Increased from 0.875rem */
+    font-weight: 600;
+    margin-top: 0.75rem;
+}
+
+.kpi-change.positive {
+    color: var(--accent-green);
+}
+
+.kpi-change.negative {
+    color: var(--accent-red);
+}
+
+/* ============================================
+   GREETING HEADER
+   ============================================ */
+.greeting-header {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: white !important;
+    margin-bottom: 0.25rem;
+}
+
+.greeting-subtitle {
+    font-size: 1rem;
+    color: var(--text-secondary) !important;
+    margin-bottom: 1rem;
+}
+
+/* ============================================
+   ANIMATIONS
+   ============================================ */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-in {
+    animation: fadeInUp 0.5s ease-out;
+}
+
+/* ============================================
+   METRIC CARDS (Streamlit native)
+   ============================================ */
+[data-testid="stMetric"] {
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 1.25rem !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+}
+
+[data-testid="stMetricValue"] {
+    color: #FFFFFF !important;
+    font-size: 1.75rem !important;
+    font-weight: 700 !important;
+}
+
+/* ============================================
+   CHART CONTAINERS
+   ============================================ */
+.chart-container {
+    background: var(--bg-card) !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: var(--border-radius) !important;
+    padding: 1.5rem !important;
+    border: 1px solid var(--glass-border) !important;
+    box-shadow: var(--glass-shadow) !important;
+    margin-bottom: 1.5rem !important;
+}
+
+.chart-title {
+    font-size: 1.25rem;
+    /* Increased from 1rem */
+    font-weight: 700;
+    color: white;
+    margin-bottom: 1.5rem;
+}
+
+/* ============================================
+   DATAFRAMES & TABLES
+   ============================================ */
+[data-testid="stDataFrame"] {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border-radius: var(--border-radius-sm) !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+[data-testid="stDataFrame"] th {
+    background: #1E293B !important;
+    color: #F8FAFC !important;
+}
+
+/* ============================================
+   FORMS & INPUTS
+   ============================================ */
+.stTextInput>div>div>input,
+.stSelectbox>div>div>div,
+.stNumberInput>div>div>input,
+.stDateInput>div>div>input {
+    background-color: rgba(255, 255, 255, 0.03) !important;
+    color: white !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: var(--border-radius-sm) !important;
+}
+
+/* ============================================
+   EXPANDERS
+   ============================================ */
+.streamlit-expanderHeader {
+    background: rgba(30, 41, 59, 0.5) !important;
+    color: white !important;
+    border: 1px solid var(--glass-border) !important;
+}
+
+.streamlit-expanderContent {
+    background: rgba(30, 41, 59, 0.3) !important;
+    color: white !important;
+}
+
+/* ============================================
+   SCROLLBAR
+   ============================================ */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0F172A;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #1E293B;
+    border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #334155;
+}
